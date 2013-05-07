@@ -6,6 +6,7 @@ require_relative 'storage'
 
 if ENV['RACK_ENV'] != 'production'
   set :port, 5000
+  ENV['MONGOHQ_URL']='mongodb://firefly:design@dharma.mongohq.com:10015/firefly-data'
 end
 
 FD_SYNC_START = 1
@@ -32,8 +33,8 @@ end
 def sync_vma(hardware_id, binary)
   time = binary.get_time32
   interval = binary.get_uint16
-  n = binary.remaining_length / 2 # 2 == sizeof(float16)
-  values = n.times.collect { binary.get_float16 }
+  n = binary.remaining_length / 4 # 4 == sizeof(float32)
+  values = n.times.collect { binary.get_float32 }
 
   $storage.sync(hardware_id.to_s, time, 'vmas', {time: time, interval: interval, values: values})
 end

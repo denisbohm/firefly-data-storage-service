@@ -38,7 +38,7 @@ class Storage
 
   def query(type, span)
     db = get_connection()
-    db.collection('syncs').find({type => {"$exists" => true}}, {type => 1})
+    db.collection('syncs').find({type => {"$exists" => true}}, fields: {type => 1}).to_a
   end
 
 end
