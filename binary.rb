@@ -59,7 +59,7 @@ class Binary
     Time.at(get_uint32).getutc()
   end
 
-  def get_time
+  def get_time64
     seconds = get_uint32
     microseconds = get_uint32
     Time.at(seconds, microseconds).getutc()
@@ -105,7 +105,7 @@ class Binary
     put_uint32(value.to_i)
   end
 
-  def put_time(value)
+  def put_time64(value)
     put_uint32(value.to_i)
     put_uint32(value.usec)
   end

@@ -7,4 +7,5 @@ gem 'float-formats'
 
 group :development, :test do
   gem 'rack-test'
+  gem 'minitest-reporters'
 end

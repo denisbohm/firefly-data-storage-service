@@ -1,4 +1,4 @@
-require 'binary'
+require_relative 'binary'
 
 class HardwareId
 

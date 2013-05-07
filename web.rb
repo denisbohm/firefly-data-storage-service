@@ -1,8 +1,12 @@
 require 'sinatra'
 require 'json'
-require 'binary'
-require 'hardware_id'
-require 'storage'
+require_relative 'binary'
+require_relative 'hardware_id'
+require_relative 'storage'
+
+if ENV['RACK_ENV'] != 'production'
+  set :port, 5000
+end
 
 FD_SYNC_START = 1
 FD_SYNC_DATA = 2
@@ -15,23 +19,23 @@ def self.storage_type(s)
 end
 
 FD_LOG_TYPE = storage_type('FDLO')
-FD_ACTIVITY_TYPE = storage_type('FDAC')
+FD_VMA_TYPE = storage_type('FDVM')
 
 def sync_log(hardware_id, binary)
-  time = binary.get_time
+  time = binary.get_time64
   length = binary.remaining_length
   message = binary.get_bytes(length)
 
-  $storage.sync(hardware_id.to_s, time, {log: {time: time, message: message}})
+  $storage.sync(hardware_id.to_s, time, 'log', {time: time, message: message})
 end
 
-def sync_activity(hardware_id, binary)
+def sync_vma(hardware_id, binary)
   time = binary.get_time32
   interval = binary.get_uint16
   n = binary.remaining_length / 2 # 2 == sizeof(float16)
   values = n.times.collect { binary.get_float16 }
 
-  $storage.sync(hardware_id.to_s, time, {activity: {time: time, interval: interval, values: values}})
+  $storage.sync(hardware_id.to_s, time, 'vmas', {time: time, interval: interval, values: values})
 end
 
 def sync_data(binary)
@@ -44,8 +48,8 @@ def sync_data(binary)
   case type
     when FD_LOG_TYPE
       sync_log(hardware_id, binary)
-    when FD_ACTIVITY_TYPE
-      sync_activity(hardware_id, binary)
+    when FD_VMA_TYPE
+      sync_vma(hardware_id, binary)
     else
       return "unknown type #{type}"
   end
@@ -71,6 +75,18 @@ post '/sync' do
       response = "unexpected code #{code}"
   end
   response
+end
+
+post '/query' do
+  json_request = request.env['rack.input'].read
+  object = JSON.parse(json_request)
+  query = object['query']
+  type = query['type']
+  span = {start: query['start'], end: query['end'], duration: query['duration']}
+  result = $storage.query(type, span)
+  content_type :json
+  response = {query: query, result: result}
+  response.to_json
 end
 
 post '/echo' do

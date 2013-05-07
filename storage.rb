@@ -21,7 +21,7 @@ class Storage
     device_hardware_id + ' ' + day.strftime('%Y-%m-%d')
   end
 
-  def sync(device_hardware_id, time, sync)
+  def sync(device_hardware_id, time, type, data)
     day = get_day(time)
     id = get_sync_document_id(device_hardware_id, day)
     document = {
@@ -30,10 +30,15 @@ class Storage
         day: day
     }
     operation = {
-        '$push' => {syncs: sync}
+        '$push' => {type => data}
     }
     db = get_connection()
     db.collection('syncs').update(document, operation, {upsert: true})
+  end
+
+  def query(type, span)
+    db = get_connection()
+    db.collection('syncs').find({type => {"$exists" => true}}, {type => 1})
   end
 
 end

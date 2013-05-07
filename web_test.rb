@@ -1,4 +1,5 @@
-require 'web'
+require_relative 'web'
+require 'json'
 require 'test/unit'
 require 'rack/test'
 
@@ -11,14 +12,20 @@ class MockStorage
     @calls = []
   end
 
-  def sync(device_hardware_id, time, sync)
+  def sync(device_hardware_id, time, type, data)
     assert_equal 'Firefly Ice 3.4 0102030405060708', device_hardware_id
     exp_time = Time.parse('2013-04-14 19:55:00.001000000 UTC', '%Y-%m-%d %H:%M:%S.%9N %Z')
-    exp_time
     assert_equal exp_time, time
-    exp_sync = {:log=>{:time=>exp_time, :message=>'az'}}
-    assert_equal exp_sync, sync
+    assert_equal 'log', type
+    exp_data = {:time=>exp_time, :message=>'az'}
+    assert_equal exp_data, data
     @calls << 'sync'
+  end
+
+  def query(type, span)
+    assert_equal 'vmas', type
+    @calls << 'query_series'
+    {_id:'hwid-1 2013-04-12', vmas:[{time: 1, interval: 4, values: [3, 8, 4]}]}
   end
 
   def verify
@@ -75,6 +82,18 @@ class WebTest < Test::Unit::TestCase
 
     assert last_response.ok?
     assert_equal response, last_response.body
+  end
+
+  def test_query_activity
+    request = '{"query": {"type": "vmas", "end": "$max", "duration": "1d"}}'
+
+    response = '{"query": {"type": "vmas", "end": "$max", "duration": "1d"}, "result": {"_id":"hwid-1 2013-04-12", "vmas":[{"time": 1, "interval": 4, "values": [3, 8, 4]}]}}'
+
+    $storage = MockStorage.new
+    post '/query', request, 'CONTENT_TYPE' => 'application\/json'
+
+    assert last_response.ok?
+    assert_equal JSON.parse(response), JSON.parse(last_response.body)
   end
 
 end
