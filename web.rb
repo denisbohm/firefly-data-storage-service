@@ -9,9 +9,9 @@ if ENV['RACK_ENV'] != 'production'
   ENV['MONGOHQ_URL']='mongodb://firefly:design@dharma.mongohq.com:10015/firefly-data'
 end
 
-FD_SYNC_START = 1
-FD_SYNC_DATA = 2
-FD_SYNC_ACK = 3
+FD_CONTROL_SYNC_START = 15
+FD_CONTROL_SYNC_DATA = 16
+FD_CONTROL_SYNC_ACK = 17
 
 $storage = Storage.new
 
@@ -46,6 +46,10 @@ def sync_data(binary)
   hash = binary.get_uint16
   type = binary.get_uint32
 
+  if page == 0xfffffffe
+    return 'nothing to sync'
+  end
+
   case type
     when FD_LOG_TYPE
       sync_log(hardware_id, binary)
@@ -55,10 +59,10 @@ def sync_data(binary)
       return "unknown type #{type}"
   end
 
-  content_type 'application\/octet-stream'
+  content_type 'application/octet-stream'
 
   response = Binary.new('')
-  response.put_uint8(FD_SYNC_ACK)
+  response.put_uint8(FD_CONTROL_SYNC_ACK)
   response.put_uint32(page)
   response.put_uint16(length)
   response.put_uint16(hash)
@@ -68,14 +72,7 @@ end
 
 post '/sync' do
   binary = Binary.new(request.env['rack.input'].read)
-  code = binary.get_uint8
-  case code
-    when FD_SYNC_DATA
-      response = sync_data(binary)
-    else
-      response = "unexpected code #{code}"
-  end
-  response
+  sync_data(binary)
 end
 
 post '/query' do
